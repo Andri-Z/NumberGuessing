@@ -8,6 +8,8 @@ using System.Threading.Channels;
 using System.Timers;
 using System.Transactions;
 using System.Xml.Serialization;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 class Program
 {
@@ -23,6 +25,8 @@ class Program
 
             if (Response() == 2)
                 break;
+
+            Console.Clear();
         }
         if (game.attemptsList.Any() && game.elapsedList.Any())
             msg.ShowBests(game.attemptsList,game.elapsedList);
@@ -43,29 +47,26 @@ class Game
     private Random random = new();
     public List<int> attemptsList = new();
     public List<TimeSpan> elapsedList = new();
+    ShowMessages showMsg = new ShowMessages();
     public void GameEngine()
     {
-        int secretNumber = random.Next(1, 101);
-        var showMsg = new ShowMessages();
+        int secretNumber = random.Next(0, 101);
         var timer = new TimerControl();
-        int maxAttemps = MaxAttempts();
+        int attempts = Attempts();
         int input, count = 0;
         bool flag = false;
 
-        while (count < maxAttemps)
+        while (true)
         {
+            timer.Reset();
             timer.Start();
             count++;
             Console.WriteLine("\nEnter your guess:");
-            while (!int.TryParse(Console.ReadLine(), out input) || input <= 0)
-                Console.WriteLine("You must enter a valid number.");
+            input = ValidateNumber();
 
             if (input == secretNumber)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                Console.WriteLine($"Congratulations! You guessed the correct number in {count} attempts.");
-                Console.ForegroundColor = ConsoleColor.White;
-
+                showMsg.ShowWinMessage(count);
                 flag = true;
                 timer.Stop();
                 elapsedList.Add(timer.Elapsed());
@@ -74,26 +75,30 @@ class Game
                 timer.Reset();
                 break;
             }
+            else if (count == attempts)
+                break;
             else
-                Console.WriteLine(input > secretNumber ? "Incorrect! The number is less than {0}" :
-                    "Incorrect! The number is greater than {0}", input);
+                Console.WriteLine(input > secretNumber ? $"Incorrect! The number is less than {input}" :
+                    $"Incorrect! The number is greater than {input}");
+                
         }
         if (flag == false)
+        {
+            timer.Stop();
             showMsg.ShowLossMessage(secretNumber);
+            timer.Reset();
+        }  
     }
-    int MaxAttempts()
+    int Attempts()
     {
-        int choice;
-        Console.WriteLine("Please select the dificulty level:");
-        Console.WriteLine(" 1. Easy (10 chances) \n 2. Medium (5 chances) \n 3. Hard (3 chances) \n");
-        Thread.Sleep(1500);
-
-        Console.WriteLine("Enter your choice:");
-        while (!int.TryParse(Console.ReadLine(), out choice) || choice < 1 || choice > 3)
+        showMsg.ShowDificultyLevel();
+        int attempts = ValidateNumber();
+        while (attempts < 1 || attempts > 3)
         {
             Console.WriteLine("Invalid input. Please enter number between 1 and 3:");
+            attempts = ValidateNumber();
         }
-        return choice switch
+        return attempts switch
         {
             1 => 10,
             2 => 5,
@@ -101,16 +106,33 @@ class Game
             _ => 0
         };
     }
+    int ValidateNumber()
+    {
+        int number;
+        while (!int.TryParse(Console.ReadLine(), out number))
+            Console.WriteLine("You must enter a valid number:");
+        return number;
+    }
 }
 class ShowMessages
 {
+    public void ShowWinMessage(int attempts)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGreen;
+        Console.WriteLine($"Congratulations! You guessed the correct number in {attempts} attempts.");
+        Console.ForegroundColor = ConsoleColor.White;
+    }
+    public void ShowDificultyLevel()
+    {
+        Console.WriteLine("Please select the dificulty level:");
+        Console.WriteLine(" 1. Easy (10 chances) \n 2. Medium (5 chances) \n 3. Hard (3 chances) \n");
+        Thread.Sleep(500);
+        Console.WriteLine("Enter your choice:");
+    }
     public void ShowWelcomeMessage()
     {
         Console.WriteLine("Welcome to the Number Guessing Game!");
-        Thread.Sleep(1500);
-        Console.WriteLine("I'm thinking of a number between 1 and 100.");
-        Thread.Sleep(1500);
-        Console.WriteLine("You have 5 chances to guess the correct number.\n");
+        Console.WriteLine("I'm thinking of a number between 1 and 100.\n");
     }
     public void ShowBests(List<int> attemptsList, List<TimeSpan> timeList)
     {
@@ -121,20 +143,14 @@ class ShowMessages
     }
     public void ShowLossMessage(int secretNumber)
     {
-        var timer = new TimerControl();
-        timer.Stop();
-        
-        Console.WriteLine($"Elapsed time:{timer.Elapsed}");
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"Game over! the number was {secretNumber}.");
+        Console.WriteLine($"You lose! the number was {secretNumber}.");
         Console.ForegroundColor = ConsoleColor.White;
-
-        timer.Reset();
     }
 }
-class TimerControl()
+class TimerControl
 {
-    Stopwatch timer = new();
+    private Stopwatch timer = new();
     public void Start() =>
         timer.Start();
 
