@@ -58,7 +58,6 @@ class Game
 
         while (true)
         {
-            timer.Reset();
             timer.Start();
             count++;
             Console.WriteLine("\nEnter your guess:");
